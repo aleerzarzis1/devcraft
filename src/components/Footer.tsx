@@ -14,7 +14,7 @@ const footerLinks = {
     { href: "/validation-projet", label: "Paiement acompte" },
   ],
   contact: {
-    email: "contact@devcraft.fr",
+    email: "devcraft.store@gmail.com",
     phone: "01 23 45 67 89",
   },
 };
