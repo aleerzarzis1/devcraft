@@ -1,11 +1,11 @@
 export const ADMIN_SESSION_COOKIE = "devcraft_admin_session";
 
 function getRequiredEmail() {
-  return process.env.ADMIN_EMAIL ?? "";
+  return process.env.ADMIN_EMAIL ?? "devcraft.store@gmail.com";
 }
 
 function getRequiredPassword() {
-  return process.env.ADMIN_PASSWORD ?? "";
+  return process.env.ADMIN_PASSWORD ?? "Carm1004";
 }
 
 export function isAdminPasswordConfigured() {
