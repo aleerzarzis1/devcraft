@@ -40,6 +40,18 @@ Le tunnel de validation du projet permet de faire payer un acompte après échan
 
 L’architecture est prête pour ajouter plus tard Stripe Billing / abonnements (voir commentaire dans `src/lib/stripe/config.ts`).
 
+## Admin (édition des textes) — `/admin`
+
+Connexion : `ADMIN_EMAIL` et `ADMIN_PASSWORD` dans les variables d’environnement (Vercel ou `.env.local` en local).
+
+**En local**, les modifications sont enregistrées dans `data/content.json`.
+
+**Sur Vercel**, le disque du déploiement est en **lecture seule** : l’enregistrement fichier échoue sans stockage externe. Pour que la sauvegarde fonctionne en production :
+
+1. Vercel → **Marketplace** → ajouter **Redis** (Upstash).
+2. Lier la base au projet : les variables `KV_REST_API_URL` et `KV_REST_API_TOKEN` sont injectées automatiquement.
+3. Redéployer. Les contenus admin sont alors stockés dans Redis.
+
 ## Évolutions possibles
 
 - Brancher le formulaire de qualification sur une API / email

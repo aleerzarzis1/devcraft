@@ -12,24 +12,40 @@ async function isAuthorized() {
 
 export async function GET() {
   if (!(await isAuthorized())) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return NextResponse.json(
+      { error: "UNAUTHORIZED", message: "Session expirée ou non connecté. Reconnectez-vous." },
+      { status: 401 },
+    );
   }
 
-  const content = await readSiteContent();
-  return NextResponse.json({ ok: true, content });
+  try {
+    const content = await readSiteContent();
+    return NextResponse.json({ ok: true, content });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Lecture impossible.";
+    return NextResponse.json({ error: "READ_FAILED", message }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
   if (!(await isAuthorized())) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return NextResponse.json(
+      { error: "UNAUTHORIZED", message: "Session expirée ou non connecté. Reconnectez-vous." },
+      { status: 401 },
+    );
   }
 
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+    return NextResponse.json({ error: "INVALID_BODY", message: "Corps de requête invalide." }, { status: 400 });
   }
 
-  const next = await writeSiteContent(body as Awaited<ReturnType<typeof readSiteContent>>);
-  return NextResponse.json({ ok: true, content: next });
+  try {
+    const next = await writeSiteContent(body as Awaited<ReturnType<typeof readSiteContent>>);
+    return NextResponse.json({ ok: true, content: next });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Enregistrement impossible.";
+    return NextResponse.json({ error: "WRITE_FAILED", message }, { status: 500 });
+  }
 }
 

@@ -2,6 +2,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { OFFER_PRICES } from "@/config/offers";
 
+const KV_CONTENT_KEY = "devcraft:site_content";
+
 export type EditableOfferPrices = {
   vitrine: string;
   complet: string;
@@ -19,7 +21,8 @@ export type SiteContent = {
 
 export const DEFAULT_SITE_CONTENT: SiteContent = {
   heroTitle: "Un design sur mesure qui convertit",
-  heroSubtitle: "Votre site livre en moins de 7 jours. Design sur mesure, optimise mobile, pret a convertir.",
+  heroSubtitle:
+    "Votre site livre en moins de 7 jours. Design sur mesure, optimise mobile, pret a convertir.",
   servicesText: "Quatre types d'offres pour generer plus de visibilite, de demandes et de ventes.",
   contactText:
     "Chaque projet est different. Contactez-nous pour echanger sur vos besoins, vos contenus et le rendu souhaite. Nous vous repondrons pour definir ensemble la meilleure approche.",
@@ -34,6 +37,11 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "content.json");
+
+/** Vercel / Upstash : variables injectées quand Redis (ex-KV) est relié au projet */
+export function isKvStorageEnabled() {
+  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+}
 
 function normalizeValue(value: unknown, fallback: string) {
   if (typeof value !== "string") return fallback;
@@ -71,8 +79,7 @@ async function ensureDataFile() {
   }
 }
 
-export async function readSiteContent(): Promise<SiteContent> {
-  await ensureDataFile();
+async function readFromFile(): Promise<SiteContent> {
   try {
     const raw = await fs.readFile(DATA_FILE, "utf8");
     const parsed = JSON.parse(raw) as unknown;
@@ -82,11 +89,61 @@ export async function readSiteContent(): Promise<SiteContent> {
   }
 }
 
+async function readFromKv(): Promise<SiteContent | null> {
+  const { kv } = await import("@vercel/kv");
+  const raw = await kv.get<string>(KV_CONTENT_KEY);
+  if (raw == null) return null;
+  try {
+    const parsed = typeof raw === "string" ? (JSON.parse(raw) as unknown) : raw;
+    return mergeWithDefaults(parsed);
+  } catch {
+    return null;
+  }
+}
+
+export async function readSiteContent(): Promise<SiteContent> {
+  if (isKvStorageEnabled()) {
+    try {
+      const fromKv = await readFromKv();
+      if (fromKv) return fromKv;
+      // Première fois : initialiser depuis le fichier du dépôt si possible
+      const fromFile = await readFromFile().catch(() => DEFAULT_SITE_CONTENT);
+      return fromFile;
+    } catch {
+      return readFromFile();
+    }
+  }
+  return readFromFile();
+}
+
 export async function writeSiteContent(content: SiteContent): Promise<SiteContent> {
-  await ensureDataFile();
   const sanitized = mergeWithDefaults(content);
-  await fs.writeFile(DATA_FILE, JSON.stringify(sanitized, null, 2), "utf8");
-  return sanitized;
+
+  if (isKvStorageEnabled()) {
+    try {
+      const { kv } = await import("@vercel/kv");
+      await kv.set(KV_CONTENT_KEY, JSON.stringify(sanitized));
+      return sanitized;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur Redis/KV.";
+      throw new Error(`Sauvegarde distante impossible : ${message}`);
+    }
+  }
+
+  try {
+    await ensureDataFile();
+    await fs.writeFile(DATA_FILE, JSON.stringify(sanitized, null, 2), "utf8");
+    return sanitized;
+  } catch (err) {
+    if (process.env.VERCEL && !isKvStorageEnabled()) {
+      throw new Error(
+        "Impossible d'écrire sur le disque en production (Vercel : disque en lecture seule). " +
+          "Ajoutez le stockage Redis : Vercel → Marketplace → Redis (Upstash) → connecter au projet. " +
+          "Les variables KV_REST_API_URL et KV_REST_API_TOKEN seront ajoutées. Redéployez, puis enregistrez à nouveau.",
+      );
+    }
+    throw new Error(err instanceof Error ? err.message : "Erreur d'écriture.");
+  }
 }
 
 export function toOfferPrices(content: SiteContent) {
@@ -97,4 +154,3 @@ export function toOfferPrices(content: SiteContent) {
     abonnement: { ...OFFER_PRICES.abonnement, price: content.offerPrices.abonnement },
   };
 }
-

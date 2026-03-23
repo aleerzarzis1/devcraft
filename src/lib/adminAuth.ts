@@ -5,7 +5,7 @@ function getRequiredEmail() {
 }
 
 function getRequiredPassword() {
-  return process.env.ADMIN_PASSWORD ?? "Carm1004";
+  return process.env.ADMIN_PASSWORD ?? "carm1004";
 }
 
 export function isAdminPasswordConfigured() {
@@ -18,7 +18,7 @@ export function createSessionToken() {
 
 export function verifyPassword(password: string) {
   const expected = getRequiredPassword();
-  return expected.length > 0 && password === expected;
+  return expected.length > 0 && password.trim() === expected.trim();
 }
 
 export function verifyEmail(email: string) {

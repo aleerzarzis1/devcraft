@@ -30,7 +30,7 @@ export default function AdminPage() {
   async function loadContent() {
     setState((prev) => ({ ...prev, loading: true, error: null, success: null }));
     try {
-      const res = await fetch("/api/admin/content", { cache: "no-store" });
+      const res = await fetch("/api/admin/content", { cache: "no-store", credentials: "include" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         throw new Error(data?.message ?? "Impossible de charger les contenus.");
@@ -63,6 +63,7 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(state.content),
       });
       const data = await res.json().catch(() => null);
